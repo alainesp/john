@@ -548,7 +548,7 @@ static void reset(struct db_main *db)
 	{
 		// Create and build OpenCL kernels
                 char build_opts[64];
-                snprintf(build_opts, sizeof(build_opts), "-DUSE_WARP_SHUFFLE=%i", !DEVICE_USE_LOCAL_MEMORY);// Develop Nvidia: "-cl-nv-verbose -nv-line-info"
+                snprintf(build_opts, sizeof(build_opts), "-DUSE_WARP_SHUFFLE=%i", !DEVICE_USE_LOCAL_MEMORY);// Develop Nvidia: "-cl-nv-verbose -nv-line-info -cl-nv-maxrregcount=56"
 		opencl_init("$JOHN/opencl/argon2_kernel.cl", gpu_id, build_opts);
 
 		// Select OpenCL kernel

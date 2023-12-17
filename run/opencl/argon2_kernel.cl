@@ -459,10 +459,21 @@ __kernel void KERNEL_NAME(ARGON2_TYPE)(__global struct block_g* memory, uint pas
 
     struct block_th prev;
     //load_block(&prev, mem_prev, thread);
-    prev.a = mem_prev[0 * THREADS_PER_LANE];
-    prev.b = mem_prev[1 * THREADS_PER_LANE];
-    prev.c = mem_prev[2 * THREADS_PER_LANE];
-    prev.d = mem_prev[3 * THREADS_PER_LANE];
+	__global uint* mem_uint = (__global uint*)mem_prev;
+	uint a_lo = mem_uint[0 * THREADS_PER_LANE];
+	uint b_lo = mem_uint[1 * THREADS_PER_LANE];
+	uint c_lo = mem_uint[2 * THREADS_PER_LANE];
+	uint d_lo = mem_uint[3 * THREADS_PER_LANE];
+
+	uint a_hi = mem_uint[4 * THREADS_PER_LANE];
+	uint b_hi = mem_uint[5 * THREADS_PER_LANE];
+	uint c_hi = mem_uint[6 * THREADS_PER_LANE];
+	uint d_hi = mem_uint[7 * THREADS_PER_LANE];
+
+    prev.a = upsample(a_hi, a_lo);
+    prev.b = upsample(b_hi, b_lo);
+    prev.c = upsample(c_hi, c_lo);
+    prev.d = upsample(d_hi, d_lo);
 
     // Cycle
     for (uint offset = start_offset; offset < segment_blocks; ++offset)
@@ -536,30 +547,63 @@ __kernel void KERNEL_NAME(ARGON2_TYPE)(__global struct block_g* memory, uint pas
 #else
         if (pass != 0) {
 		//load_block(tmp, mem_curr, thread);
-		tmp.a = mem_curr[0 * THREADS_PER_LANE];
-		tmp.b = mem_curr[1 * THREADS_PER_LANE];
-		tmp.c = mem_curr[2 * THREADS_PER_LANE];
-		tmp.d = mem_curr[3 * THREADS_PER_LANE];
+			mem_uint = (__global uint*)mem_curr;
+			a_lo = mem_uint[0 * THREADS_PER_LANE];
+			b_lo = mem_uint[1 * THREADS_PER_LANE];
+			c_lo = mem_uint[2 * THREADS_PER_LANE];
+			d_lo = mem_uint[3 * THREADS_PER_LANE];
 
-		//load_block_xor(prev, mem_ref, thread);
-		prev.a ^= mem_ref[0 * THREADS_PER_LANE];
-		prev.b ^= mem_ref[1 * THREADS_PER_LANE];
-		prev.c ^= mem_ref[2 * THREADS_PER_LANE];
-		prev.d ^= mem_ref[3 * THREADS_PER_LANE];
+			a_hi = mem_uint[4 * THREADS_PER_LANE];
+			b_hi = mem_uint[5 * THREADS_PER_LANE];
+			c_hi = mem_uint[6 * THREADS_PER_LANE];
+			d_hi = mem_uint[7 * THREADS_PER_LANE];
 
-		//xor_block(tmp, prev);
-		tmp.a ^= prev.a;
-		tmp.b ^= prev.b;
-		tmp.c ^= prev.c;
-		tmp.d ^= prev.d;
+			tmp.a = upsample(a_hi, a_lo);
+			tmp.b = upsample(b_hi, b_lo);
+			tmp.c = upsample(c_hi, c_lo);
+			tmp.d = upsample(d_hi, d_lo);
+
+			//load_block_xor(prev, mem_ref, thread);
+			mem_uint = (__global uint*)mem_ref;
+			a_lo = mem_uint[0 * THREADS_PER_LANE];
+			b_lo = mem_uint[1 * THREADS_PER_LANE];
+			c_lo = mem_uint[2 * THREADS_PER_LANE];
+			d_lo = mem_uint[3 * THREADS_PER_LANE];
+
+			a_hi = mem_uint[4 * THREADS_PER_LANE];
+			b_hi = mem_uint[5 * THREADS_PER_LANE];
+			c_hi = mem_uint[6 * THREADS_PER_LANE];
+			d_hi = mem_uint[7 * THREADS_PER_LANE];
+
+			prev.a ^= upsample(a_hi, a_lo);
+			prev.b ^= upsample(b_hi, b_lo);
+			prev.c ^= upsample(c_hi, c_lo);
+			prev.d ^= upsample(d_hi, d_lo);
+
+			//xor_block(tmp, prev);
+			tmp.a ^= prev.a;
+			tmp.b ^= prev.b;
+			tmp.c ^= prev.c;
+			tmp.d ^= prev.d;
         } else {
 		//load_block_xor(prev, mem_ref, thread);
-		prev.a ^= mem_ref[0 * THREADS_PER_LANE];
-		prev.b ^= mem_ref[1 * THREADS_PER_LANE];
-		prev.c ^= mem_ref[2 * THREADS_PER_LANE];
-		prev.d ^= mem_ref[3 * THREADS_PER_LANE];
+			mem_uint = (__global uint*)mem_ref;
+			a_lo = mem_uint[0 * THREADS_PER_LANE];
+			b_lo = mem_uint[1 * THREADS_PER_LANE];
+			c_lo = mem_uint[2 * THREADS_PER_LANE];
+			d_lo = mem_uint[3 * THREADS_PER_LANE];
 
-		tmp = prev;
+			a_hi = mem_uint[4 * THREADS_PER_LANE];
+			b_hi = mem_uint[5 * THREADS_PER_LANE];
+			c_hi = mem_uint[6 * THREADS_PER_LANE];
+			d_hi = mem_uint[7 * THREADS_PER_LANE];
+
+			prev.a ^= upsample(a_hi, a_lo);
+			prev.b ^= upsample(b_hi, b_lo);
+			prev.c ^= upsample(c_hi, c_lo);
+			prev.d ^= upsample(d_hi, d_lo);
+
+			tmp = prev;
         }
 #endif
 
@@ -572,10 +616,16 @@ __kernel void KERNEL_NAME(ARGON2_TYPE)(__global struct block_g* memory, uint pas
         prev.d ^= tmp.d;
 
         //store_block(mem_curr, prev, thread);
-	mem_curr[0 * THREADS_PER_LANE] = prev.a;
-	mem_curr[1 * THREADS_PER_LANE] = prev.b;
-	mem_curr[2 * THREADS_PER_LANE] = prev.c;
-	mem_curr[3 * THREADS_PER_LANE] = prev.d;
+		mem_uint = (__global uint*)mem_curr;
+		mem_uint[0 * THREADS_PER_LANE] = (uint)prev.a;
+		mem_uint[1 * THREADS_PER_LANE] = (uint)prev.b;
+		mem_uint[2 * THREADS_PER_LANE] = (uint)prev.c;
+		mem_uint[3 * THREADS_PER_LANE] = (uint)prev.d;
+
+		mem_uint[4 * THREADS_PER_LANE] = (uint)(prev.a >> 32);
+		mem_uint[5 * THREADS_PER_LANE] = (uint)(prev.b >> 32);
+		mem_uint[6 * THREADS_PER_LANE] = (uint)(prev.c >> 32);
+		mem_uint[7 * THREADS_PER_LANE] = (uint)(prev.d >> 32);
 
         // End
         mem_curr += lanes * ARGON2_QWORDS_IN_BLOCK;
